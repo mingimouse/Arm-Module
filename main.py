@@ -108,7 +108,7 @@ while True:
             else:
                 in_guide_start_time = None
 
-        # 측정 중이라면 시간 표시
+        # 측정 중 이라면 시간 표시
         if measuring_started:
             elapsed = current_time - start_time
             elapsed_int = int(elapsed)
@@ -175,10 +175,8 @@ if "Left" in first_data and "Left" in last_data:
     left_slope_diff = round(abs((m13_2 - m5_2) - (m13_1 - m5_1)), 3)
 
     result_data["Left"] = {
-        "thumb_diff": round(t2 - t1, 3),
-        "pinky_diff": round(p2 - p1, 3),
         "slope_diff": left_slope_diff,
-        "y_diffs": [round(d, 3) for d in left_diffs],
+        "y_diffs": [round(d, 4) for d in left_diffs],
         "drift_detected": left_drift,
         "drop_detected": left_fall
     }
@@ -193,10 +191,8 @@ if "Right" in first_data and "Right" in last_data:
     right_slope_diff = round(abs((m13_2 - m5_2) - (m13_1 - m5_1)), 3)
 
     result_data["Right"] = {
-        "thumb_diff": round(t2 - t1, 3),
-        "pinky_diff": round(p2 - p1, 3),
         "slope_diff": right_slope_diff,
-        "y_diffs": [round(d, 3) for d in right_diffs],
+        "y_diffs": [round(d, 4) for d in right_diffs],
         "drift_detected": right_drift,
         "drop_detected": right_fall
     }

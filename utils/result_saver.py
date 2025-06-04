@@ -2,14 +2,9 @@ import os
 import pandas as pd
 
 def flatten_result(result_data):
-    """
-    분석된 결과 데이터를 CSV로 내보낼 수 있도록 평탄화
-    """
     return {
         "timestamp": result_data["timestamp"],
 
-        "left_thumb_diff": result_data["Left"]["thumb_diff"],
-        "left_pinky_diff": result_data["Left"]["pinky_diff"],
         "left_slope_diff": result_data["Left"]["slope_diff"],
         "left_y_diff_0": result_data["Left"]["y_diffs"][0],
         "left_y_diff_1": result_data["Left"]["y_diffs"][1],
@@ -19,8 +14,6 @@ def flatten_result(result_data):
         "left_drift_detected": result_data["Left"]["drift_detected"],
         "left_drop_detected": result_data["Left"]["drop_detected"],
 
-        "right_thumb_diff": result_data["Right"]["thumb_diff"],
-        "right_pinky_diff": result_data["Right"]["pinky_diff"],
         "right_slope_diff": result_data["Right"]["slope_diff"],
         "right_y_diff_0": result_data["Right"]["y_diffs"][0],
         "right_y_diff_1": result_data["Right"]["y_diffs"][1],
