@@ -1,8 +1,8 @@
 # Arm-Module
 <br>
 
-- 졸업작품(F.A.S.T 기반 뇌졸중 경고 시스템) 중 Arm 모듈 개발
-- C093299 홍민기
+- by [mingimouse](https://github.com/mingimouse/) (C093299 홍민기)
+- 졸업작품(F.A.S.T 기반 뇌졸중 경고 시스템) - Arm 모듈 개발
 
 <br>
 
@@ -23,4 +23,3 @@
 <br>
 
 ## 2. 머신러닝 모델
-### 2.1.
