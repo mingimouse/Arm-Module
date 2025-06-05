@@ -1,2 +1,0 @@
-timestamp,left_slope_diff,left_y_diff_0,left_y_diff_1,left_y_diff_2,left_y_diff_3,left_y_diff_4,left_drift_detected,left_drop_detected,right_slope_diff,right_y_diff_0,right_y_diff_1,right_y_diff_2,right_y_diff_3,right_y_diff_4,right_drift_detected,right_drop_detected,final_diagnosis
-2025-06-05 01:50:26,0.0,-0.0118,-0.0092,-0.0093,-0.0082,-0.0077,False,False,0.0,-0.0083,0.0063,0.016,0.0242,0.0181,False,False,normal

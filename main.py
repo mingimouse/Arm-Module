@@ -9,12 +9,13 @@ import pandas as pd
 
 # 사용자 정의 패키지 설치
 from ai_model.hand_tracker import HandTracker
-from ai_model.arm_logic import is_pronator_drift_thumb_pinky, is_arm_dropped
+from ai_model.arm_logic import is_pronator_drift_by_slope, is_arm_dropped
 from utils.draw_korean import draw_korean_text
 from utils.result_saver import save_result_csv
 
 # 가이드 이미지 불러오기 (알파 채널 포함)
 guide = cv2.imread("guide.png", cv2.IMREAD_UNCHANGED)
+
 
 # 투명 배경 이미지를 영상에 오버레이하는 함수
 def overlay_image_alpha(img, img_overlay, pos, alpha_mask):
@@ -28,10 +29,11 @@ def overlay_image_alpha(img, img_overlay, pos, alpha_mask):
         alpha_mask = alpha_mask[:h, :w]
     # RGB 채널별로 알파 블랜딩 적용
     for c in range(3):
-        img[y:y+h, x:x+w, c] = (
-            alpha_mask * img_overlay[:, :, c] +
-            (1 - alpha_mask) * img[y:y+h, x:x+w, c]
+        img[y:y + h, x:x + w, c] = (
+                alpha_mask * img_overlay[:, :, c] +
+                (1 - alpha_mask) * img[y:y + h, x:x + w, c]
         )
+
 
 # Mediapipe 기반 핸드트래커 초기화
 tracker = HandTracker()
@@ -54,11 +56,13 @@ print("양손이 정해진 박스에 들어오면 10초간 측정을 시작합�
 left_box = ((150, 400), (450, 650))
 right_box = ((850, 400), (1150, 650))
 
+
 # 손가락 위치가 박스 안에 들어왔는지 확인하는 함수
 def is_in_box(point, box):
     x, y = point
     (x1, y1), (x2, y2) = box
     return x1 <= x <= x2 and y1 <= y <= y2
+
 
 while True:
     success, img = cap.read()
@@ -82,7 +86,7 @@ while True:
         pos_x = (width - guide.shape[1]) // 2
         pos_y = height - guide.shape[0]
         overlay_image_alpha(img, overlay_rgb, (pos_x, pos_y), overlay_alpha)
-    
+
     # 손이 감지되었을 경우
     if result.multi_hand_landmarks and result.multi_handedness:
         middle_fingers = {"Left": None, "Right": None}
@@ -92,7 +96,7 @@ while True:
             mid_tip = hand_landmarks.landmark[12]
             cx, cy = int(mid_tip.x * width), int(mid_tip.y * height)
             middle_fingers[hand_label] = (cx, cy)
-        
+
         # 측정 시작 조건: 양손이 박스 안에 3초간 유지되었을 때
         if not measuring_started and middle_fingers["Left"] and middle_fingers["Right"]:
             in_left = is_in_box(middle_fingers["Left"], left_box)
@@ -133,15 +137,25 @@ while True:
             if measuring_started:
                 elapsed = current_time - start_time
                 if 2.5 < elapsed < 3.5:
-                    mcp5_x = hand_landmarks.landmark[5].x
-                    mcp13_x = hand_landmarks.landmark[13].x
-                    first_data[hand_label] = (thumb_x, pinky_x, mcp5_x, mcp13_x)
+                    # 시작 시점
+                    index_lm = hand_landmarks.landmark[8]
+                    pinky_lm = hand_landmarks.landmark[20]
+                    first_data[hand_label] = {
+                        "index_tip": (index_lm.x, index_lm.y),
+                        "pinky_tip": (pinky_lm.x, pinky_lm.y)
+                    }
                     first_y_data[hand_label] = y_list
+
                 elif 9.5 < elapsed < 10.5:
-                    mcp5_x = hand_landmarks.landmark[5].x
-                    mcp13_x = hand_landmarks.landmark[13].x
-                    last_data[hand_label] = (thumb_x, pinky_x, mcp5_x, mcp13_x)
+                    # 종료 시점
+                    index_lm = hand_landmarks.landmark[8]
+                    pinky_lm = hand_landmarks.landmark[20]
+                    last_data[hand_label] = {
+                        "index_tip": (index_lm.x, index_lm.y),
+                        "pinky_tip": (pinky_lm.x, pinky_lm.y)
+                    }
                     last_y_data[hand_label] = y_list
+
     else:
         # 손 미인식 시 메시지 출력
         if not measuring_started:
@@ -151,7 +165,7 @@ while True:
         draw_korean_text(img, "양손을 검정 박스 안에 3초간 유지하세요", (width // 2 - 250, 50), font_size=28)
 
     cv2.imshow("Pronator Drift Detection", img)
-    
+
     # 'q'를 누르거나 10초 경과 시 종료
     if cv2.waitKey(1) & 0xFF == ord('q') or (measuring_started and (current_time - start_time > 11)):
         break
@@ -159,45 +173,52 @@ while True:
 cap.release()
 cv2.destroyAllWindows()
 
-# ---------------- 측정 결과 분석 ----------------------------
-
-# 초기값
-left_drift = right_drift = left_fall = right_fall = False
+# ---------------- 결과 분석 --------------------
 result_data = {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+left_drift = right_drift = left_fall = right_fall = False
 
-# 왼손 결과 분석
 if "Left" in first_data and "Left" in last_data:
-    t1, p1, m5_1, m13_1 = first_data["Left"]
-    t2, p2, m5_2, m13_2 = last_data["Left"]
+    m8_1 = first_data["Left"]["index_tip"]
+    m20_1 = first_data["Left"]["pinky_tip"]
+    m8_2 = last_data["Left"]["index_tip"]
+    m20_2 = last_data["Left"]["pinky_tip"]
 
-    left_drift = is_pronator_drift_thumb_pinky("Left", m5_1, m13_1, m5_2, m13_2)
+    left_drift, left_slope_diff = is_pronator_drift_by_slope(m8_1, m20_1, m8_2, m20_2)
     left_fall, left_diffs = is_arm_dropped(first_y_data["Left"], last_y_data["Left"])
-    left_slope_diff = round(abs((m13_2 - m5_2) - (m13_1 - m5_1)), 3)
+
+    left_start_slope = (m20_1[1] - m8_1[1]) / (m20_1[0] - m8_1[0] + 1e-6)
+    left_end_slope = (m20_2[1] - m8_2[1]) / (m20_2[0] - m8_2[0] + 1e-6)
 
     result_data["Left"] = {
-        "slope_diff": left_slope_diff,
+        "start_slope": round(left_start_slope, 4),
+        "end_slope": round(left_end_slope, 4),
+        "slope_diff": round(left_slope_diff, 4),
         "y_diffs": [round(d, 4) for d in left_diffs],
         "drift_detected": left_drift,
         "drop_detected": left_fall
     }
 
-# 오른손 결과 분석
 if "Right" in first_data and "Right" in last_data:
-    t1, p1, m5_1, m13_1 = first_data["Right"]
-    t2, p2, m5_2, m13_2 = last_data["Right"]
+    m8_1 = first_data["Right"]["index_tip"]
+    m20_1 = first_data["Right"]["pinky_tip"]
+    m8_2 = last_data["Right"]["index_tip"]
+    m20_2 = last_data["Right"]["pinky_tip"]
 
-    right_drift = is_pronator_drift_thumb_pinky("Right", m5_1, m13_1, m5_2, m13_2)
+    right_drift, right_slope_diff = is_pronator_drift_by_slope(m8_1, m20_1, m8_2, m20_2)
     right_fall, right_diffs = is_arm_dropped(first_y_data["Right"], last_y_data["Right"])
-    right_slope_diff = round(abs((m13_2 - m5_2) - (m13_1 - m5_1)), 3)
+
+    right_start_slope = (m20_1[1] - m8_1[1]) / (m20_1[0] - m8_1[0] + 1e-6)
+    right_end_slope = (m20_2[1] - m8_2[1]) / (m20_2[0] - m8_2[0] + 1e-6)
 
     result_data["Right"] = {
-        "slope_diff": right_slope_diff,
+        "start_slope": round(right_start_slope, 4),
+        "end_slope": round(right_end_slope, 4),
+        "slope_diff": round(right_slope_diff, 4),
         "y_diffs": [round(d, 4) for d in right_diffs],
         "drift_detected": right_drift,
         "drop_detected": right_fall
     }
 
-# 최종 진단 판단
 if (left_drift or left_fall) ^ (right_drift or right_fall):
     result_data["final_diagnosis"] = "detected"
 elif (left_drift or left_fall) and (right_drift or right_fall):
@@ -205,14 +226,25 @@ elif (left_drift or left_fall) and (right_drift or right_fall):
 else:
     result_data["final_diagnosis"] = "normal"
 
-# CSV 생성
+# csv 내보내기
 save_result_csv(result_data)
 
-# 터미널 출력
+# ---------------- 터미널 출력 ----------------------------
+print("\n[Drift Result]")
 if "Left" in result_data:
     left = result_data["Left"]
-    print(f"[Left] y 변화량: {left['y_diffs']} → 하강: {left['drop_detected']}]")
+    print(f"[Left] 초기 기울기: {left['start_slope']:.4f}, 최종 기울기: {left['end_slope']:.4f} "
+          f"--> 기울기 변화량: {left['slope_diff']:.4f} --> 판단결과({left['drift_detected']})")
 if "Right" in result_data:
     right = result_data["Right"]
-    print(f"[Right] y 변화량: {right['y_diffs']} → 하강: {right['drop_detected']}]")
-print(f"🔍 최종 판정 결과: {result_data['final_diagnosis']}")
+    print(f"[Right] 초기 기울기: {right['start_slope']:.4f}, 최종 기울기: {right['end_slope']:.4f} "
+          f"--> 기울기 변화량: {right['slope_diff']:.4f} --> 판단결과({right['drift_detected']})")
+
+print("\n[Drop Result]")
+if "Left" in result_data:
+    print(f"[Left] y 변화량: {result_data['Left']['y_diffs']} --> 판단결과({result_data['Left']['drop_detected']})")
+if "Right" in result_data:
+    print(f"[Right] y 변화량: {result_data['Right']['y_diffs']} --> 판단결과({result_data['Right']['drop_detected']})")
+
+print(f"\n[최종 판정]: {result_data['final_diagnosis']}")
+

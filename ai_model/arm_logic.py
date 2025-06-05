@@ -1,15 +1,20 @@
-def is_pronator_drift_thumb_pinky(hand_label, mcp5_start_x, mcp13_start_x, mcp5_end_x, mcp13_end_x, threshold=0.05):
+def is_pronator_drift_by_slope(idx_tip_start, pinky_tip_start, idx_tip_end, pinky_tip_end, threshold=0.2):
     """
-    손목이 회전했는지 판단 (검지-MCP와 약지-MCP 사이 기울기 변화 사용)
-    - 시작/종료 시점의 mcp5, mcp13 x좌표 비교로 회전 판단
+    손목 회전 여부를 판단하는 함수 (검지-TIP8, 소지-TIP20 기준)
+    - slope = (y2 - y1) / (x2 - x1)
+    - slope 변화량이 threshold를 넘으면 회전으로 판단
     """
-    start_slope = mcp13_start_x - mcp5_start_x
-    end_slope = mcp13_end_x - mcp5_end_x
-    slope_diff = abs(end_slope - start_slope)
+    def compute_slope(p1, p2):
+        dx = p2[0] - p1[0]
+        dy = p2[1] - p1[1]
+        return dy / dx if abs(dx) > 1e-6 else float('inf')
 
-    print(f"[{hand_label}] 기울기 변화량: {round(slope_diff, 4)}")
-    return slope_diff > threshold
+    slope_start = compute_slope(idx_tip_start, pinky_tip_start)
+    slope_end = compute_slope(idx_tip_end, pinky_tip_end)
+    slope_diff = abs(slope_end - slope_start)
 
+    drifted = slope_diff > threshold
+    return drifted, slope_diff
 
 def is_arm_dropped(y_first, y_last, threshold=0.05):
     """
@@ -18,3 +23,4 @@ def is_arm_dropped(y_first, y_last, threshold=0.05):
     diffs = [y2 - y1 for y1, y2 in zip(y_first, y_last)]
     dropped = all(diff > threshold for diff in diffs)
     return dropped, diffs
+
