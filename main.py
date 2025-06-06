@@ -30,8 +30,8 @@ def overlay_image_alpha(img, img_overlay, pos, alpha_mask):
     # RGB 채널별로 알파 블랜딩 적용
     for c in range(3):
         img[y:y + h, x:x + w, c] = (
-                alpha_mask * img_overlay[:, :, c] +
-                (1 - alpha_mask) * img[y:y + h, x:x + w, c]
+            alpha_mask * img_overlay[:, :, c] +
+            (1 - alpha_mask) * img[y:y + h, x:x + w, c]
         )
 
 
@@ -123,8 +123,13 @@ while True:
         # 손가락 좌표 및 데이터를 추출
         for i, hand_landmarks in enumerate(result.multi_hand_landmarks):
             hand_label = result.multi_handedness[i].classification[0].label
-            thumb_x = hand_landmarks.landmark[4].x
-            pinky_x = hand_landmarks.landmark[20].x
+            # 엄지-TIP(landmark 4) 좌표
+            thumb_lm = hand_landmarks.landmark[4]
+            thumb_x, thumb_y = thumb_lm.x, thumb_lm.y
+            # 새끼-TIP(landmark 20) 좌표
+            pinky_lm = hand_landmarks.landmark[20]
+            pinky_x, pinky_y = pinky_lm.x, pinky_lm.y
+
             y_list = [hand_landmarks.landmark[idx].y for idx in tracker.fingertip_indices]
 
             # 손가락 TIP 시각화
@@ -137,22 +142,18 @@ while True:
             if measuring_started:
                 elapsed = current_time - start_time
                 if 2.5 < elapsed < 3.5:
-                    # 시작 시점
-                    index_lm = hand_landmarks.landmark[8]
-                    pinky_lm = hand_landmarks.landmark[20]
+                    # 시작 시점: 엄지TIP, 새끼TIP 저장
                     first_data[hand_label] = {
-                        "index_tip": (index_lm.x, index_lm.y),
-                        "pinky_tip": (pinky_lm.x, pinky_lm.y)
+                        "thumb_tip": (thumb_x, thumb_y),
+                        "pinky_tip": (pinky_x, pinky_y)
                     }
                     first_y_data[hand_label] = y_list
 
                 elif 9.5 < elapsed < 10.5:
-                    # 종료 시점
-                    index_lm = hand_landmarks.landmark[8]
-                    pinky_lm = hand_landmarks.landmark[20]
+                    # 종료 시점: 엄지TIP, 새끼TIP 저장
                     last_data[hand_label] = {
-                        "index_tip": (index_lm.x, index_lm.y),
-                        "pinky_tip": (pinky_lm.x, pinky_lm.y)
+                        "thumb_tip": (thumb_x, thumb_y),
+                        "pinky_tip": (pinky_x, pinky_y)
                     }
                     last_y_data[hand_label] = y_list
 
@@ -177,48 +178,57 @@ cv2.destroyAllWindows()
 result_data = {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 left_drift = right_drift = left_fall = right_fall = False
 
+# 왼손 결과 분석
 if "Left" in first_data and "Left" in last_data:
-    m8_1 = first_data["Left"]["index_tip"]
-    m20_1 = first_data["Left"]["pinky_tip"]
-    m8_2 = last_data["Left"]["index_tip"]
-    m20_2 = last_data["Left"]["pinky_tip"]
+    thumb_1 = first_data["Left"]["thumb_tip"]
+    pinky_1 = first_data["Left"]["pinky_tip"]
+    thumb_2 = last_data["Left"]["thumb_tip"]
+    pinky_2 = last_data["Left"]["pinky_tip"]
 
-    left_drift, left_slope_diff = is_pronator_drift_by_slope(m8_1, m20_1, m8_2, m20_2)
+    # 기울기 기반 드리프트 감지
+    left_drift, left_slope_diff = is_pronator_drift_by_slope(thumb_1, pinky_1, thumb_2, pinky_2)
+    # 팔 떨어짐 감지
     left_fall, left_diffs = is_arm_dropped(first_y_data["Left"], last_y_data["Left"])
 
-    left_start_slope = (m20_1[1] - m8_1[1]) / (m20_1[0] - m8_1[0] + 1e-6)
-    left_end_slope = (m20_2[1] - m8_2[1]) / (m20_2[0] - m8_2[0] + 1e-6)
+    # 순수 start/end 기울기를 계산해서 저장
+    left_start_slope = (pinky_1[1] - thumb_1[1]) / (pinky_1[0] - thumb_1[0] + 1e-6)
+    left_end_slope   = (pinky_2[1] - thumb_2[1]) / (pinky_2[0] - thumb_2[0] + 1e-6)
 
     result_data["Left"] = {
         "start_slope": round(left_start_slope, 4),
-        "end_slope": round(left_end_slope, 4),
-        "slope_diff": round(left_slope_diff, 4),
-        "y_diffs": [round(d, 4) for d in left_diffs],
+        "end_slope":   round(left_end_slope, 4),
+        "slope_diff":  round(left_slope_diff, 4),
+        "y_diffs":     [round(d, 4) for d in left_diffs],
         "drift_detected": left_drift,
-        "drop_detected": left_fall
+        "drop_detected":  left_fall
     }
 
+# 오른손 결과 분석
 if "Right" in first_data and "Right" in last_data:
-    m8_1 = first_data["Right"]["index_tip"]
-    m20_1 = first_data["Right"]["pinky_tip"]
-    m8_2 = last_data["Right"]["index_tip"]
-    m20_2 = last_data["Right"]["pinky_tip"]
+    thumb_1 = first_data["Right"]["thumb_tip"]
+    pinky_1 = first_data["Right"]["pinky_tip"]
+    thumb_2 = last_data["Right"]["thumb_tip"]
+    pinky_2 = last_data["Right"]["pinky_tip"]
 
-    right_drift, right_slope_diff = is_pronator_drift_by_slope(m8_1, m20_1, m8_2, m20_2)
+    # 기울기 기반  드리프트 감지
+    right_drift, right_slope_diff = is_pronator_drift_by_slope(thumb_1, pinky_1, thumb_2, pinky_2)
+    # 팔 떨어짐 감지
     right_fall, right_diffs = is_arm_dropped(first_y_data["Right"], last_y_data["Right"])
 
-    right_start_slope = (m20_1[1] - m8_1[1]) / (m20_1[0] - m8_1[0] + 1e-6)
-    right_end_slope = (m20_2[1] - m8_2[1]) / (m20_2[0] - m8_2[0] + 1e-6)
+    # 순수 start/end 기울기를 계산해서 저장
+    right_start_slope = (pinky_1[1] - thumb_1[1]) / (pinky_1[0] - thumb_1[0] + 1e-6)
+    right_end_slope   = (pinky_2[1] - thumb_2[1]) / (pinky_2[0] - thumb_2[0] + 1e-6)
 
     result_data["Right"] = {
         "start_slope": round(right_start_slope, 4),
-        "end_slope": round(right_end_slope, 4),
-        "slope_diff": round(right_slope_diff, 4),
-        "y_diffs": [round(d, 4) for d in right_diffs],
+        "end_slope":   round(right_end_slope, 4),
+        "slope_diff":  round(right_slope_diff, 4),
+        "y_diffs":     [round(d, 4) for d in right_diffs],
         "drift_detected": right_drift,
-        "drop_detected": right_fall
+        "drop_detected":  right_fall
     }
 
+# 최종 판정
 if (left_drift or left_fall) ^ (right_drift or right_fall):
     result_data["final_diagnosis"] = "detected"
 elif (left_drift or left_fall) and (right_drift or right_fall):
@@ -226,10 +236,10 @@ elif (left_drift or left_fall) and (right_drift or right_fall):
 else:
     result_data["final_diagnosis"] = "normal"
 
-# csv 내보내기
+# CSV 생성
 save_result_csv(result_data)
 
-# ---------------- 터미널 출력 ----------------------------
+# 터미널 출력
 print("\n[Drift Result]")
 if "Left" in result_data:
     left = result_data["Left"]
@@ -247,4 +257,3 @@ if "Right" in result_data:
     print(f"[Right] y 변화량: {result_data['Right']['y_diffs']} --> 판단결과({result_data['Right']['drop_detected']})")
 
 print(f"\n[최종 판정]: {result_data['final_diagnosis']}")
-
