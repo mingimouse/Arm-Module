@@ -7,9 +7,6 @@
     <list default="true" id="346d0d48-329e-4226-a084-363c31844f42" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai_model/arm_logic.py" beforeDir="false" afterPath="$PROJECT_DIR$/ai_model/arm_logic.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/result.csv" beforeDir="false" afterPath="$PROJECT_DIR$/data/result.csv" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -72,6 +69,8 @@
       <workItem from="1749215702956" duration="1139000" />
       <workItem from="1749217204982" duration="375000" />
       <workItem from="1749221542738" duration="1527000" />
+      <workItem from="1749224732567" duration="582000" />
+      <workItem from="1749225891123" duration="8000" />
     </task>
     <servers />
   </component>
